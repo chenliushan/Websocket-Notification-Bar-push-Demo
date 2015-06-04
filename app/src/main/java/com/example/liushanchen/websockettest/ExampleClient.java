@@ -57,6 +57,8 @@ public class ExampleClient extends WebSocketClient {
     public void onClose(int code, String reason, boolean remote) {
         // The codecodes are documented in class org.java_websocket.framing.CloseFrame
         Log.i(tag, "Connection closed by " + (remote ? "remote peer" : "us"));
+        Log.i(tag, "Connection closed code : " + code);
+        Log.i(tag, "Connection closed reason : " + reason);
     }
 
     @Override

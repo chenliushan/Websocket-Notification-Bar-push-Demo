@@ -31,6 +31,7 @@ public class MainActivity extends ActionBarActivity {
     private int count = 0;
     private int connCount = 0;
     private Button testBtn;
+    private ExampleClient c;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,38 +45,7 @@ public class MainActivity extends ActionBarActivity {
             TextView textView = (TextView) findViewById(R.id.tv);
             textView.setText(s);
         } else {
-
-            try {
-                ExampleClient c = new ExampleClient(new URI("ws://115.159.37.43:9000/con"), new Draft_17());
-                c.setOnProgressListener(new OnProgressListener() {
-                    @Override
-                    public void onProgress(String message) {
-                        Log.i(tag, message);
-
-                        if (!message.equals("?")) {
-                            count++;
-                            try {
-                                j2sMode1(message, count);
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-                        } else {
-                            connCount++;
-                        }
-
-//                        outMsg("", "", "", count);
-                    }
-                });
-                c.connectBlocking();
-                c.send("{p0:\"guest.login\",p1:{\"mobile\":\"13716379973\",\"pwd\":\"123456}}");
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
-            } catch (WebsocketNotConnectedException e) {
-                e.printStackTrace();
-            }
+            connWebSocket();
         }
         testBtn = (Button) findViewById(R.id.test_btn);
         testBtn.setOnClickListener(new View.OnClickListener() {
@@ -109,7 +79,32 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-//    public String s2j() throws JSONException {
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        reConnWebSocket();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        disConnWebSocket(0, "pause activity");
+    }
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        disConnWebSocket(0,"finish activity");
+    }
+    //    public String s2j() throws JSONException {
 //
 //        String json = "{\"p0\":\"p1\"}";
 //        JSONObject jsonObj = JSONObject.formObject(json);
@@ -127,6 +122,49 @@ public class MainActivity extends ActionBarActivity {
 //        System.out.println(jsonObj);
 //        return jsonObj.toString();
 //    }
+
+    private void connWebSocket() {
+
+        try {
+            c = new ExampleClient(new URI("ws://115.159.37.43:9000/con"), new Draft_17());
+            c.setOnProgressListener(new OnProgressListener() {
+                @Override
+                public void onProgress(String message) {
+                    Log.i(tag, message);
+                    if (!message.equals("?")) {
+                        count++;
+                        try {
+                            j2sMode1(message, count);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        connCount++;
+                        Log.i(tag, "connCount:" + connCount);
+                    }
+                }
+            });
+            c.connectBlocking();
+            c.send("{p0:\"guest.login\",p1:{\"mobile\":\"13716379973\",\"pwd\":\"123456}}");
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        } catch (WebsocketNotConnectedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void reConnWebSocket(){
+        disConnWebSocket(1,"reconnect");
+        connWebSocket();
+    }
+    private void disConnWebSocket(int code,String reason) {
+        if(c!=null){
+            c.close();
+        }
+    }
 
     private void j2sMode1(String message, int count) throws JSONException {
         JSONObject dataJson = new JSONObject(message);//"你的Json数据"
@@ -167,8 +205,8 @@ public class MainActivity extends ActionBarActivity {
         PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.SCREEN_DIM_WAKE_LOCK, "bright");//获取PowerManager.WakeLock对象,后面的参数|表示同时传入两个值,最后的是LogCat里用的Tag  
         wl.acquire();//点亮屏幕  
         wl.release();
-        
-        KeyguardManager km= (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);//得到键盘锁管理器对象  
+
+        KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);//得到键盘锁管理器对象  
         KeyguardManager.KeyguardLock kl = km.newKeyguardLock("unLock");//参数是LogCat里用的Tag  
         kl.disableKeyguard();//解锁
 
@@ -179,14 +217,15 @@ public class MainActivity extends ActionBarActivity {
         NotificationManager manage = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
         Notification myiding = new Notification(R.drawable.ic_launcher, mabstract + myCode + "", System.currentTimeMillis());//初始化消息
         Intent dongzuo = new Intent(MainActivity.this, MainActivity.class);//设置消息点击后动作
-        String s = "abstract" +mabstract+"|tittle"+tittle+"|context"+context+"|myCode"+ myCode + "...";
+        String s = "abstract" + mabstract + "|tittle" + tittle + "|context" + context + "|myCode" + myCode + "...";
         dongzuo.putExtra("t", s);
         PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), myCode, dongzuo, myCode);//设置指定消息动作
         myiding.setLatestEventInfo(getApplicationContext(), tittle + myCode + "", context, zhixing);//设置消息内容
         myiding.flags = Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
-        myiding.defaults = Notification.DEFAULT_ALL; //默认声音
+        myiding.defaults = Notification.DEFAULT_ALL; //默认声音+震动
         manage.notify(myCode, myiding);//发送消息
     }
+
     protected void outMsg(String mabstract, String tittle, String context) {
         wakeup();
         NotificationManager manage = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
@@ -195,7 +234,7 @@ public class MainActivity extends ActionBarActivity {
         PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), count, dongzuo, count);//设置指定消息动作
         myiding.setLatestEventInfo(getApplicationContext(), tittle + count + "", context, zhixing);//设置消息内容
         myiding.flags = Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
-        myiding.defaults = Notification.DEFAULT_ALL; //默认声音
+        myiding.defaults = Notification.DEFAULT_ALL; //默认声音＋震动
         manage.notify(count, myiding);//发送消息
     }
 
