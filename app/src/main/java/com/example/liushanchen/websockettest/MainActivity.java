@@ -1,5 +1,6 @@
 package com.example.liushanchen.websockettest;
 
+import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -143,7 +144,7 @@ public class MainActivity extends ActionBarActivity {
             String title = d.getString("title");
             String version = d.getString("version");
             String url = d.getString("url");
-            outMsg(a, title, version + "|" + url, count);
+            outMsg(a, title, version + "|" + url);
         }
 
 
@@ -166,16 +167,31 @@ public class MainActivity extends ActionBarActivity {
         PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.SCREEN_DIM_WAKE_LOCK, "bright");//获取PowerManager.WakeLock对象,后面的参数|表示同时传入两个值,最后的是LogCat里用的Tag  
         wl.acquire();//点亮屏幕  
         wl.release();
+        
+        KeyguardManager km= (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);//得到键盘锁管理器对象  
+        KeyguardManager.KeyguardLock kl = km.newKeyguardLock("unLock");//参数是LogCat里用的Tag  
+        kl.disableKeyguard();//解锁
 
     }
 
-    protected void outMsg(String mabstract, String tittle, String context, int count) {
+    protected void outMsg(String mabstract, String tittle, String context, int myCode) {
+        wakeup();
+        NotificationManager manage = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
+        Notification myiding = new Notification(R.drawable.ic_launcher, mabstract + myCode + "", System.currentTimeMillis());//初始化消息
+        Intent dongzuo = new Intent(MainActivity.this, MainActivity.class);//设置消息点击后动作
+        String s = "abstract" +mabstract+"|tittle"+tittle+"|context"+context+"|myCode"+ myCode + "...";
+        dongzuo.putExtra("t", s);
+        PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), myCode, dongzuo, myCode);//设置指定消息动作
+        myiding.setLatestEventInfo(getApplicationContext(), tittle + myCode + "", context, zhixing);//设置消息内容
+        myiding.flags = Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
+        myiding.defaults = Notification.DEFAULT_ALL; //默认声音
+        manage.notify(myCode, myiding);//发送消息
+    }
+    protected void outMsg(String mabstract, String tittle, String context) {
         wakeup();
         NotificationManager manage = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
         Notification myiding = new Notification(R.drawable.ic_launcher, mabstract + count + "", System.currentTimeMillis());//初始化消息
-        Intent dongzuo = new Intent(MainActivity.this, MainActivity.class);//设置消息点击后动作
-        String s = "dfadjflakt" + count + "...";
-        dongzuo.putExtra("t", s);
+        Intent dongzuo = new Intent(MainActivity.this, TestActivity.class);//设置消息点击后动作
         PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), count, dongzuo, count);//设置指定消息动作
         myiding.setLatestEventInfo(getApplicationContext(), tittle + count + "", context, zhixing);//设置消息内容
         myiding.flags = Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
