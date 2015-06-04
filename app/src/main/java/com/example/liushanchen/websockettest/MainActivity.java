@@ -6,10 +6,13 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import org.java_websocket.drafts.Draft_17;
@@ -23,8 +26,10 @@ import java.net.URISyntaxException;
 
 
 public class MainActivity extends ActionBarActivity {
-    String tag = "MainActivity";
-    int count=0;
+    private String tag = "MainActivity";
+    private int count = 0;
+    private int connCount = 0;
+    private Button testBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,20 +39,30 @@ public class MainActivity extends ActionBarActivity {
         Bundle bundle = this.getIntent().getExtras();
         if (bundle != null && bundle.getString("t") != null) {
             String s = bundle.getString("t");
-            Log.i(tag,s);
+            Log.i(tag, s);
             TextView textView = (TextView) findViewById(R.id.tv);
             textView.setText(s);
-        }else {
+        } else {
 
             try {
-                ExampleClient c = new ExampleClient(new URI("ws://192.168.1.10:9000/con"), new Draft_17());
+                ExampleClient c = new ExampleClient(new URI("ws://115.159.37.43:9000/con"), new Draft_17());
                 c.setOnProgressListener(new OnProgressListener() {
                     @Override
-                    public void onProgress(String masage) {
-                        Log.i(tag, masage);
+                    public void onProgress(String message) {
+                        Log.i(tag, message);
 
-                        count++;
-                        outMsg("", "", "", count);
+                        if (!message.equals("?")) {
+                            count++;
+                            try {
+                                j2sMode1(message, count);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        } else {
+                            connCount++;
+                        }
+
+//                        outMsg("", "", "", count);
                     }
                 });
                 c.connectBlocking();
@@ -61,6 +76,14 @@ public class MainActivity extends ActionBarActivity {
                 e.printStackTrace();
             }
         }
+        testBtn = (Button) findViewById(R.id.test_btn);
+        testBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent testActivity = new Intent(MainActivity.this, TestActivity.class);
+                startActivity(testActivity);
+            }
+        });
     }
 
     @Override
@@ -104,8 +127,30 @@ public class MainActivity extends ActionBarActivity {
 //        return jsonObj.toString();
 //    }
 
+    private void j2sMode1(String message, int count) throws JSONException {
+        JSONObject dataJson = new JSONObject(message);//"你的Json数据"
+        String a = dataJson.getString("a");
+        if (a.equals("prescription.arriver")) {
+            JSONObject d = dataJson.getJSONObject("d");
+            String id = d.getString("id");
+            String name = d.getString("name");
+            JSONObject doctor = d.getJSONObject("doctor");
+            String doctorName = doctor.getString("name");
+            String doctorScore = doctor.getString("score");
+            outMsg(a, name + "|" + id, doctorName + "|" + doctorScore, count);
+        } else if (a.equals("notice")) {
+            JSONObject d = dataJson.getJSONObject("d");
+            String title = d.getString("title");
+            String version = d.getString("version");
+            String url = d.getString("url");
+            outMsg(a, title, version + "|" + url, count);
+        }
+
+
+    }
+
     private void j2s(String masage) throws JSONException {
-        JSONObject dataJson = new JSONObject("你的Json数据");
+        JSONObject dataJson = new JSONObject(masage);//"你的Json数据"
         JSONObject response = dataJson.getJSONObject("response");
         JSONArray data = response.getJSONArray("data");
         JSONObject info = data.getJSONObject(0);
@@ -116,32 +161,26 @@ public class MainActivity extends ActionBarActivity {
         System.out.println(province + city + district + address);
     }
 
-    protected void outMsg(String mabstract, String tittle, String context,int count) {
+    private void wakeup() {
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);//获取电源管理器对象  
+        PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.SCREEN_DIM_WAKE_LOCK, "bright");//获取PowerManager.WakeLock对象,后面的参数|表示同时传入两个值,最后的是LogCat里用的Tag  
+        wl.acquire();//点亮屏幕  
+        wl.release();
+
+    }
+
+    protected void outMsg(String mabstract, String tittle, String context, int count) {
+        wakeup();
         NotificationManager manage = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
-        Notification myiding = new Notification(R.drawable.ic_launcher, mabstract+count+"", System.currentTimeMillis());//初始化消息
+        Notification myiding = new Notification(R.drawable.ic_launcher, mabstract + count + "", System.currentTimeMillis());//初始化消息
         Intent dongzuo = new Intent(MainActivity.this, MainActivity.class);//设置消息点击后动作
-        String s="dfadjflakt"+count+"...";
+        String s = "dfadjflakt" + count + "...";
         dongzuo.putExtra("t", s);
-        PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), count, dongzuo, 0);//设置指定消息动作
-        myiding.setLatestEventInfo(getApplicationContext(), tittle+count+"", context, zhixing);//设置消息内容
+        PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), count, dongzuo, count);//设置指定消息动作
+        myiding.setLatestEventInfo(getApplicationContext(), tittle + count + "", context, zhixing);//设置消息内容
         myiding.flags = Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
-//        notification.defaults |= Notification.DEFAULT_SOUND; //默认声音
+        myiding.defaults = Notification.DEFAULT_ALL; //默认声音
         manage.notify(count, myiding);//发送消息
     }
 
-//    private NotificationManager manage;
-//    private Notification myiding;
-//    //开始行动
-//    protected void Outmsg1() {
-//        // TODO Auto-generated method stub
-//        manage = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);//定义系统消息管理类
-//        myiding = new Notification(R.drawable.ic_launcher, "消息简介", System.currentTimeMillis());//初始化消息
-//        Intent dongzuo = new Intent(MainActivity.this,Mymain.class);//设置消息点击后动作
-//        PendingIntent zhixing = PendingIntent.getActivity(getApplicationContext(), 0, dongzuo, 0);//设置指定消息动作
-//        //myiding.setLatestEventInfo(getApplicationContext(), "标题", "内容", zhixing);//设置消息内容
-//        myiding.contentView=new RemoteViews(getPackageName(), R.layout.mymain);
-//        myiding.contentView.setProgressBar(R.id.progressBar1, 100, 0, false);
-//        myiding.flags=Notification.FLAG_AUTO_CANCEL;//设置消息点击后消失
-//        handler.postDelayed(run, 100);
-//    }
 }
